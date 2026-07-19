@@ -4,6 +4,7 @@ import path from "node:path";
 import type { OgLink, OgLinkInput } from "@/types/og-link";
 import { randomSlug, slugify } from "@/lib/slug";
 import { nanoid } from "nanoid";
+import type { Redis } from "@upstash/redis";
 
 /**
  * Storage backend
@@ -60,9 +61,16 @@ async function writeAllLocal(links: OgLink[]): Promise<void> {
 //   oglink:record:{id}    -> JSON string of OgLink
 //   oglink:slug:{slug}    -> id  (for O(1) slug lookup / uniqueness)
 
+let kvInstance: Redis | null = null;
+
 async function getKv() {
-  const { kv } = await import("@vercel/kv");
-  return kv;
+  if (kvInstance) return kvInstance;
+  const { Redis } = await import("@upstash/redis");
+  kvInstance = new Redis({
+    url: process.env.KV_REST_API_URL!,
+    token: process.env.KV_REST_API_TOKEN!
+  });
+  return kvInstance;
 }
 
 async function readAllKv(): Promise<OgLink[]> {
