@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getLinkBySlug } from "@/lib/store";
+import { getSiteUrl } from "@/lib/url";
 import AutoRedirect from "@/components/AutoRedirect";
 
 export const runtime = "nodejs";
@@ -18,25 +19,25 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     return { title: "Link not found" };
   }
 
-  const shareUrl = `/go/${link.slug}`;
+  const siteUrl = getSiteUrl();
+  const shareUrl = new URL(`/go/${link.slug}`, siteUrl).toString();
+  const imageUrl = new URL(link.image, siteUrl).toString();
 
   return {
     title: link.title,
     description: link.description,
-    // Keep redirect utility pages out of search results - the target page owns SEO for its own content.
-    robots: { index: false, follow: false },
     openGraph: {
       title: link.title,
       description: link.description,
       url: shareUrl,
       type: "website",
-      images: [{ url: link.image }]
+      images: [{ url: imageUrl, alt: link.title }]
     },
     twitter: {
       card: "summary_large_image",
       title: link.title,
       description: link.description,
-      images: [link.image]
+      images: [imageUrl]
     }
   };
 }
