@@ -81,9 +81,32 @@ async function readAllKv(): Promise<OgLink[]> {
   return records.filter((r): r is OgLink => Boolean(r));
 }
 
+export async function syncLocalToKv(): Promise<void> {
+  if (!useKv) return;
+  try {
+    const localLinks = await readAllLocal();
+    if (localLinks.length === 0) return;
+
+    const kv = await getKv();
+    for (const record of localLinks) {
+      const exists = await kv.get(`oglink:record:${record.id}`);
+      if (!exists) {
+        await kv.set(`oglink:record:${record.id}`, record);
+        await kv.set(`oglink:slug:${record.slug}`, record.id);
+        await kv.sadd("oglink:index", record.id);
+      }
+    }
+  } catch (error) {
+    console.error("Failed to sync local links to KV:", error);
+  }
+}
+
 // ---- Public API -------------------------------------------------------
 
 export async function listLinks(): Promise<OgLink[]> {
+  if (useKv) {
+    await syncLocalToKv();
+  }
   const links = useKv ? await readAllKv() : await readAllLocal();
   return links.sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
 }
